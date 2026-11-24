@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Displays DNS record type and destination for a domain and optional subdomain
+
+lookup_subdomain() {
+    local domain="$1"
+    local sub_name="$2"
+    local fqdn="${sub_name}.${domain}"
+    local record_info
+
+    record_info=$(dig +noall +answer "$fqdn" A | awk '$4 == "A" { print $4, $5; exit }')
+    if [ -z "$record_info" ]; then
+        record_info=$(dig +noall +answer "$fqdn" CNAME | awk '$4 == "CNAME" { print $4, $5; exit }')
+    fi
+
+    awk -v s="$sub_name" -v info="$record_info" 'BEGIN {
+        split(info, parts, " ");
+        print "The subdomain " s " is a " parts[1] " record and points to " parts[2];
+    }' </dev/null
+}
+
+domain="$1"
+subdomain="$2"
+
+if [ -n "$subdomain" ]; then
+    lookup_subdomain "$domain" "$subdomain"
+else
+    for name in www lb-01 web-01 web-02; do
+        lookup_subdomain "$domain" "$name"
+    done
+fi
